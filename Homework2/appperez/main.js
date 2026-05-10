@@ -3,7 +3,7 @@ const width = window.innerWidth;
 const height = window.innerHeight;
 
 let sankeyLeft = 0, sankeyTop = 0;
-let sankeyMargin = {top: 15, right: 50, bottom: 15, left: 50},
+let sankeyMargin = {top: 15, right: 50, bottom: 15, left: 20},
     sankeyWidth = width - sankeyMargin.left * 2 - sankeyMargin.right*2,
     sankeyHeight = height/2 - sankeyMargin.top - sankeyMargin.bottom;
 
@@ -19,33 +19,26 @@ let teamMargin = {top: 10, right: 30, bottom: 30, left: 60},
 
 // plots
 d3.csv("fitness_data.csv").then(rawData =>{
-    // console.log("rawData", rawData);
 
-    // rawData.forEach(function(d){
-    //     d.AB = Number(d.AB);
-    //     d.H = Number(d.H);
-    //     d.salary = Number(d.salary);
-    //     d.SO = Number(d.SO);
-    // });
+    const svg = d3.select("svg").attr("font-family", "sans-serif")
+
+    const centerLine = svg.append("rect")
+    .attr("x", 0)
+    .attr("y", height / 2 + sankeyMargin.bottom)
+    .attr("height", 35)
+    .attr("opacity", 0.3)
+    .attr("fill", "#e5b83e")
+    
+    .attr("width", width)
 
 
-    // const filteredData = rawData.filter(d=>d.AB>abFilter);
-    // const processedData = filteredData.map(d=>{
-    //                       return {
-    //                           "H_AB":d.H/d.AB,
-    //                           "SO_AB":d.SO/d.AB,
-    //                           "teamID":d.teamID,
-    //                       };
-    // });
-    // console.log("processedData", processedData);
-
-    const svg = d3.select("svg");
-
-    const sankey_background = svg.append("rect")
-    .attr("width", sankeyWidth + sankeyMargin.left + sankeyMargin.right)
-    .attr("height", sankeyHeight + sankeyMargin.top + sankeyMargin.bottom)
-    .attr("transform", `translate(${sankeyMargin.left}, ${sankeyMargin.top})`)
-    .attr("fill", "pink");
+    const title = svg.append("text")
+    .attr("x", width / 2)
+    .attr("y", height / 2 + sankeyMargin.bottom + 25)
+    .attr("text-anchor", "middle")
+    .attr("font-size", 24)
+    .attr("font-weight", 900)
+    .text("How has fitness wearables impacted these 30 people?")
 
     const g1 = svg.append("g")
                 .attr("width", sankeyWidth + sankeyMargin.left + sankeyMargin.right)
@@ -60,9 +53,9 @@ d3.csv("fitness_data.csv").then(rawData =>{
             processed_datum = {}
 
             // processed_datum["Wearable use frequency"] = d["How frequently do you use your fitness wearable?"]
-            processed_datum["Did wearable motivate person to exercise?"] = d["Has the fitness wearable helped you stay motivated to exercise?"]
-            processed_datum["Was the exercise more enjoyable?"] = d["Has using a fitness wearable influenced your decision? [To exercise more?]"]
-            processed_datum["Exercise weekly frequency."] = d["How often do you exercise in a week?"]
+            processed_datum["Did wearable motivate person to exercise?"] = "Influence decision to exercise: " + d["Has using a fitness wearable influenced your decision? [To exercise more?]"]
+            processed_datum["Was the exercise more enjoyable?"] = "Makes exercise enjoyable: " + d["Do you think that the fitness wearable has made exercising more enjoyable?"]
+            processed_datum["Exercise weekly frequency."] = "Exercises " + d["How often do you exercise in a week?"].toLowerCase()
 
             return processed_datum
         })
@@ -124,9 +117,19 @@ d3.csv("fitness_data.csv").then(rawData =>{
 
     const color = d3.scaleOrdinal()
     .domain(filteredData.columns)
-    .range(["#c3d6a6", "#9ae885", "#eca2a2", "#5fc067"])
+    .range(["#5fc067", "#9ae885", "#c3d6a6",])
     const sankey = d3.sankey()
-    .nodeSort(null)
+    .nodeSort((a, b) => {
+        if (a.columnName == "Exercise weekly frequency." && b.columnName == "Exercise weekly frequency.") {
+            const orderMap = {
+                "Exercises 5 or more times a week": 1,
+                "Exercises 3-4 times a week": 2,
+                "Exercises 1-2 times a week":3,
+                "Exercises less than once a week": 4
+            }
+            return orderMap[a.name] - orderMap[b.name]
+        }
+    })
     .linkSort(null)
     .nodeWidth(4)
     .nodePadding(10)
@@ -152,7 +155,6 @@ d3.csv("fitness_data.csv").then(rawData =>{
 
     return data
   }) ()
-  console.log(colTitleData)
 
   // Label the X-axis
   g1.append("g")
@@ -160,7 +162,7 @@ d3.csv("fitness_data.csv").then(rawData =>{
   .data(colTitleData)
   .join("text")
     .attr("x", d => d.x0)
-    .attr("y", sankeyHeight + 15)
+    .attr("y", sankeyHeight + 5)
     .attr("text-anchor", (d, i) => {
         if (i == 0) {
             return "start"
@@ -170,8 +172,7 @@ d3.csv("fitness_data.csv").then(rawData =>{
             return "middle"
         }
     })
-    .attr("font-family", "sans-serif")
-    .attr("font-size", 14)
+    .attr("font-size", sankeyWidth < 800 ? 8 : 14)
     .attr("font-weight", "bold")
     .text(d => d.columnName)
 
@@ -204,10 +205,7 @@ d3.csv("fitness_data.csv").then(rawData =>{
     .join("text")
       .attr("x", d => d.x0 < sankeyWidth / 2 ? d.x1 + 6 : d.x0 - 6)
       .attr("y", d => (d.y1 + d.y0) / 2)
-    //   .attr("dy", "0.35em")
-    .attr("font-family", "sans-serif")
-    .attr("font-size", 12)
-    .attr("font-weight", "bold")
+    .attr("font-size", sankeyWidth < 800 ? 6 : 12)
       .attr("text-anchor", d => d.x0 < sankeyWidth / 2 ? "start" : "end")
       .text(d => d.name)
     .append("tspan")
