@@ -16,11 +16,11 @@ let stackedBarMargin = { top: (height/2 + titleBarHeight + sankeyMargin.bottom +
   stackedBarWidth = (width/2)
   stackedBarHeight = (height / 2) 
 
-let teamLeft = 0,
-  teamTop = 400;
-let teamMargin = { top: 10, right: 30, bottom: 30, left: 60 },
-  teamWidth = width - teamMargin.left - teamMargin.right,
-  teamHeight = height - 450 - teamMargin.top - teamMargin.bottom;
+let pieLeft = width / 2,
+  pieTop = height / 2 + titleBarHeight*2;
+let pieMargin = { top: 20, right: 20, bottom: 20, left: 20 },
+  pieWidth = width/2 - pieMargin.left - pieMargin.right,
+  pieHeight = height/2 - pieMargin.top - pieMargin.bottom - titleBarHeight;
 
 
 // plots
@@ -256,9 +256,9 @@ d3.csv("fitness_data.csv").then((rawData) => {
   const useFrequencies = new Set();
   rawData.forEach(d => {
     const influence = "Influence more exercise: " + (d["Has using a fitness wearable influenced your decision? [To exercise more?]"] || "").trim();
-    const useFrequency = (d["How frequently do you use your fitness wearable?"] || "").trim();
-    influences.add(influence);
-    useFrequencies.add(useFrequency);
+    const useFrequency = (d["How frequently do you use your fitness wearable?"])
+    influences.add(influence)
+    useFrequencies.add(useFrequency)
   })
 
   for (const influence of influences) {
@@ -337,6 +337,80 @@ d3.csv("fitness_data.csv").then((rawData) => {
     .attr("font-size", 16)
     .attr("font-weight", "bold")
     .text("How often did the influenced users wear their wearables?");
+
+
+  // At last add a pie chart
+  const pieData = (() => {
+    // we are going to look at what proportions of users who agree or strongly agreed 
+    // wearables influenced a change in diet, also said wearables influenced decision to exercise
+    const processed_data = {}
+    const filteredData = rawData.filter((d) =>{
+      let response = d["Has using a fitness wearable influenced your decision? [To change your diet?]"]
+      return response == "Agree" || response == "Strongly agree"
+    })
+
+    let responseCounts = new Map([["Agree", 0],  ["Strongly agree", 0], ["Neutral", 0]])
+
+    filteredData.forEach((d) => {
+
+      let influence = d["Has using a fitness wearable influenced your decision? [To exercise more?]"]
+      responseCounts.set(influence, responseCounts.get(influence) + 1)
+    })
+
+    for (const [k, v] of responseCounts) {
+      processed_data[k] = v
+    }
+    return processed_data
+  })()
+
+  const dataPrepper = d3.pie().value( d => d[1] )
+  const piePreppedData = dataPrepper(Object.entries(pieData))
+
+  // Trying something different with the positioning
+  const svg2 = svg.append("svg")
+  .attr("x", pieLeft)
+  .attr("y", pieTop)
+  .attr("height", pieHeight)
+  .attr("width", pieWidth)
+
+
+  const radius = pieWidth/5
+
+  const arcGenerator = d3.arc()
+  .innerRadius(0)
+  .outerRadius(radius)
+
+  const pieGroup = svg2.append("g")
+  .attr("transform", `translate(${pieWidth/2}, ${pieHeight/2})`)
+
+  pieGroup.selectAll("slices")
+  .data(piePreppedData)
+  .join("path")
+    .attr("d", arcGenerator)
+    .attr("fill", d => color(d.data[0]))
+
+  pieGroup.selectAll("slices")
+  .data(piePreppedData)
+  .join('text')
+  .text(d =>  d.data[0])
+  .attr("transform", d => "translate(" + arcGenerator.centroid(d) + ")")
+  .attr("text-anchor", "middle")
+  .attr("font-size", 14)
+
+
+  svg2.append("text")
+  .attr("x", pieWidth / 2 )
+  .attr("y", 30)
+  .attr("font-weight", "bold")
+  .attr("text-anchor", "middle")
+  .text("From users who also agreed, or strongly agreed, the wearable influence diet habits...")
+
+  svg2.append("text")
+  .attr("x", pieWidth / 2 )
+  .attr("y", pieHeight - pieMargin.bottom)
+  .attr("font-weight", "bold")
+  .attr("text-anchor", "middle")
+  .text("over 50% also agreed it influenced their decision to exercise!")
 
   // Add the legend
   const legendKeys = ["Influence more exercise: Strongly agree ", "Influence more exercise: Agree", "Influence more exercise: Neutral"]
