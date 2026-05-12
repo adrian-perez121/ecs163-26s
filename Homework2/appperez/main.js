@@ -28,7 +28,7 @@ let pieMargin = { top: 20, right: 20, bottom: 20, left: 20 },
   pieHeight = height / 2 - pieMargin.top - pieMargin.bottom - titleBarHeight;
 
 // plots
-d3.csv("fitness_data.csv").then((rawData) => {
+d3.csv("data/fitness_data.csv").then((rawData) => {
   const svg = d3.select("svg").attr("font-family", "sans-serif");
 
   const titleBar = svg
