@@ -62,8 +62,6 @@ d3.csv("fitness_data.csv").then((rawData) => {
   // First we will process only the data we need for the sankey diagram
   const filteredData = rawData.map((d) => {
     processed_datum = {};
-
-    // processed_datum["Wearable use frequency"] = d["How frequently do you use your fitness wearable?"]
     processed_datum["Did wearable influenced person to exercise?"] =
       "Influence more exercise: " +
       d[
@@ -78,7 +76,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
       "Exercises " + d["How often do you exercise in a week?"].toLowerCase();
 
     return processed_datum;
-  });
+  }); // These are the columns that we are focusing on for the sankey
   filteredData["columns"] = [
     "Did wearable influenced person to exercise?",
     "Was the exercise more enjoyable?",
@@ -86,6 +84,8 @@ d3.csv("fitness_data.csv").then((rawData) => {
   ];
 
   // Docs used for learning to how to create the diagram: https://observablehq.com/@d3/parallel-sets
+  // This graph being created will be used by the sankey diagram
+  // The flow will be: Influence to exercise more -> More enjoyable ->  Exercise frequency
   graph = (() => {
     const keys = filteredData.columns;
     let index = 0;
@@ -139,13 +139,19 @@ d3.csv("fitness_data.csv").then((rawData) => {
     return { nodes, edges };
   })();
 
+  // These colors will be used throughout the whole visualization
+  // The main idea is we are exploring how people have been influenced to exercise more have 
+  // also been influenced to do other things as well
   const color = d3
     .scaleOrdinal()
     .domain(filteredData.columns)
     .range(["#5fc067", "#9ae885", "#c3d6a6"]);
+
+  // The actual creating of the sankey diagram
   const sankey = d3
     .sankey()
-    .nodeSort((a, b) => {
+    // The nodes should have a specific order so that the story flows nicely
+    .nodeSort((a, b) => { 
       if (
         a.columnName == "Exercise weekly frequency." &&
         b.columnName == "Exercise weekly frequency."
@@ -167,6 +173,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
       [sankeyWidth + 100, sankeyHeight - 5],
     ]);
 
+  // Preparing our nodes and links for the sankey diagram
   const { nodes, links } = sankey({
     nodes: graph.nodes.map((d) => ({ ...d })),
     links: graph.edges.map((d) => ({ ...d })),
@@ -212,6 +219,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
     .attr("font-weight", "bold")
     .text((d) => d.columnName);
 
+  // the bars in the middle that stop the path of a node
   g1.append("g")
     .selectAll("rect")
     .data(nodes)
@@ -223,6 +231,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
     .append("title")
     .text((d) => `User\n(${d.value.toLocaleString()})`);
 
+  // The streams in between the bars
   g1.append("g")
     .attr("fill", "none")
     .selectAll("g")
@@ -235,6 +244,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
     .append("title")
     .text((d) => `${d.names.join(" → ")}\n(${d.value.toLocaleString()})`);
 
+  // The titles inside the streams
   g1.append("g")
     .selectAll("text")
     .data(nodes)
@@ -246,10 +256,14 @@ d3.csv("fitness_data.csv").then((rawData) => {
     .text((d) => d.name)
     .append("tspan")
     .attr("fill-opacity", 0.7)
-    .text((d) => ` (${d.value.toLocaleString()})`);
+    .text((d) => `(${d.value.toLocaleString()})`);
 
   // Stacked bar chart
   // Help from: https://observablehq.com/@d3/stacked-bar-chart/2
+
+  // Each bar is going to present the amount of response in each category
+  // The bar will be broken up into parts based on how many people in each category 
+  // also said that the wearable influenced them to exercise
   const stackedBarData = (() => {
     processed_datum = {};
     responsesCounts = new d3.InternMap([], JSON.stringify);
@@ -297,20 +311,26 @@ d3.csv("fitness_data.csv").then((rawData) => {
     return processed_data;
   })();
 
+  // will be used by the stack function to access the data
   const indexMap = d3.index(
     stackedBarData,
     (d) => d.useFrequency,
     (d) => d.influence,
   );
 
+  // The "categories mentioned earlier"
   const keys = d3.union(stackedBarData.map((d) => d.influence));
+
   const series = d3
     .stack()
     .keys(keys)
     .order((series) => d3.range(series.length).reverse())
     .value(([, D], key) => (D.get(key) && D.get(key).count) || 0)(indexMap);
 
+  // Again, order the data so that the story makes more sense
   const freqOrder = ["Rarely", "1-2 times a week", "3-4 times a week", "Daily"];
+
+  // Creating the X-axis boundaries in the svg
   const x = d3
     .scaleBand()
     .domain(freqOrder)
@@ -320,6 +340,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
     ])
     .padding(0.1);
 
+  // Creating the Y-axis boundaries in the svg
   const y = d3
     .scaleLinear()
     .domain([0, d3.max(series, (d) => d3.max(d, (d) => d[1])) + 1])
@@ -328,6 +349,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
       stackedBarTop,
     ]);
 
+  // Adding in the bars
   svg
     .append("g")
     .selectAll()
@@ -346,7 +368,8 @@ d3.csv("fitness_data.csv").then((rawData) => {
       (d) =>
         `Exercise Frequency: ${d.data[0]}\n${d.key}\nCount: ${d.data[1].get(d.key).count}`,
     );
-
+  
+  // Line for the X-axis
   svg
     .append("g")
     .attr(
@@ -355,6 +378,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
     )
     .call(d3.axisBottom(x).tickSizeOuter(0));
 
+  // Line of the Y-axis
   svg
     .append("g")
     .attr("transform", `translate(${stackedBarMargin.left + 3}, 0)`)
@@ -366,7 +390,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
     .attr("x", stackedBarWidth / 2)
     .attr("y", height / 2 + titleBarHeight * 2)
     .attr("text-anchor", "middle")
-    .attr("font-size", 16)
+    .attr("font-size", width > 1100 ? 16 : 12)
     .attr("font-weight", "bold")
     .text("How often did the influenced users wear their wearables?");
   
@@ -389,7 +413,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
     .attr("transform", `translate(${stackedBarMargin.left/2}, ${stackedBarTop + stackedBarHeight/2 - stackedBarMargin.bottom}) rotate(-90)`)
     .text("Number of people ");
 
-  // At last add a pie chart
+  // At last, add a pie chart
   const pieData = (() => {
     // we are going to look at what proportions of users who agree or strongly agreed
     // wearables influenced a change in diet, also said wearables influenced decision to exercise
@@ -425,7 +449,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
   const dataPrepper = d3.pie().value((d) => d[1]);
   const piePreppedData = dataPrepper(Object.entries(pieData));
 
-  // Trying something different with the positioning
+  // The canvas where the pie chart will be painted
   const svg2 = svg
     .append("svg")
     .attr("x", pieLeft)
@@ -433,14 +457,14 @@ d3.csv("fitness_data.csv").then((rawData) => {
     .attr("height", pieHeight)
     .attr("width", pieWidth);
 
-  const radius = pieWidth / 5;
-
+  const radius = Math.min(pieWidth, pieHeight) / 4;
   const arcGenerator = d3.arc().innerRadius(0).outerRadius(radius);
 
   const pieGroup = svg2
     .append("g")
     .attr("transform", `translate(${pieWidth / 2}, ${pieHeight / 2})`);
 
+  // The actual slices of data
   pieGroup
     .selectAll("slices")
     .data(piePreppedData)
@@ -448,35 +472,43 @@ d3.csv("fitness_data.csv").then((rawData) => {
     .attr("d", arcGenerator)
     .attr("fill", (d) => color(d.data[0]));
 
+  // The titles for each of the slices of data
   pieGroup
     .selectAll("slices")
     .data(piePreppedData)
     .join("text")
-    .text((d) => d.data[0])
-    .attr("transform", (d) => "translate(" + arcGenerator.centroid(d) + ")")
+    .text((d) =>  d.data[0])
+    .attr("transform", (d) => {
+      const mid = (d.startAngle + d.endAngle) / 2 - Math.PI/2;
+      const r = radius;// outer radius
+      return `translate(${Math.cos(mid) * r}, ${Math.sin(mid) * r})`
+    })
     .attr("text-anchor", "middle")
-    .attr("font-size", 14);
-
+    .attr("font-size", radius > 50 ? 14 : 8);
+  
+  // Top title
   svg2
     .append("text")
     .attr("x", pieWidth / 2)
     .attr("y", 30)
     .attr("font-weight", "bold")
     .attr("text-anchor", "middle")
-    .attr("font-size", 14)
+    .attr("font-size", width > 1000 ? 11 : 9)
     .text(
       "From users who also agreed, or strongly agreed the wearable influence diet habits...",
     );
-
+  
+  // Bottom title
   svg2
     .append("text")
     .attr("x", pieWidth / 2)
-    .attr("y", pieHeight - pieMargin.bottom)
+    .attr("y", pieHeight - pieMargin.bottom * 2)
     .attr("font-weight", "bold")
     .attr("text-anchor", "middle")
+    .attr("font-size", width > 1000 ? 11 : 9)
     .text("over 50% also agreed it influenced their decision to exercise!");
 
-  // Add the legend
+  // Add the legend (used by all the charts)
   const legendKeys = [
     "Influence more exercise: Strongly agree ",
     "Influence more exercise: Agree",
