@@ -403,6 +403,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
   .attr("y", 30)
   .attr("font-weight", "bold")
   .attr("text-anchor", "middle")
+  .attr("font-size", 14)
   .text("From users who also agreed, or strongly agreed, the wearable influence diet habits...")
 
   svg2.append("text")
