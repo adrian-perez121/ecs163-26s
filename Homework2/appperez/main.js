@@ -10,13 +10,13 @@ let sankeyMargin = { top: 50, right: 50, bottom: 15, left: 20 },
 
 let titleBarHeight = 35;
 
-let stackedBarLeft = 400,
-  stackedBarTop = 0;
+let stackedBarLeft = 0,
+  stackedBarTop = height/2 + titleBarHeight * 2;
 let stackedBarMargin = {
-    top: height / 2 + titleBarHeight + sankeyMargin.bottom + 10,
+    top: height / 2 + titleBarHeight + sankeyMargin.bottom + 80,
     right: 70,
-    bottom: 10,
-    left: 20,
+    bottom: 40,
+    left: 50,
   },
   stackedBarWidth = width / 2;
 stackedBarHeight = height / 2;
@@ -315,7 +315,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
     .scaleBand()
     .domain(freqOrder)
     .range([
-      stackedBarMargin.left - 10,
+      stackedBarLeft + stackedBarMargin.left,
       stackedBarWidth - stackedBarMargin.right,
     ])
     .padding(0.1);
@@ -324,8 +324,8 @@ d3.csv("fitness_data.csv").then((rawData) => {
     .scaleLinear()
     .domain([0, d3.max(series, (d) => d3.max(d, (d) => d[1])) + 1])
     .rangeRound([
-      stackedBarHeight * 2 + stackedBarMargin.bottom - 30,
-      stackedBarMargin.top,
+      stackedBarHeight * 2 - stackedBarMargin.bottom,
+      stackedBarTop,
     ]);
 
   svg
@@ -337,7 +337,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
     .selectAll("rect")
     .data((D) => D.map((d) => ((d.key = D.key), d)))
     .join("rect")
-    .attr("x", (d) => x(d.data[0]))
+    .attr("x", (d) => x(d.data[0] ))
     .attr("y", (d) => y(d[1]))
     .attr("height", (d) => y(d[0]) - y(d[1]))
     .attr("width", x.bandwidth())
@@ -347,12 +347,11 @@ d3.csv("fitness_data.csv").then((rawData) => {
         `Exercise Frequency: ${d.data[0]}\n${d.key}\nCount: ${d.data[1].get(d.key).count}`,
     );
 
-  console.log(stackedBarHeight * 2 + stackedBarMargin.bottom);
   svg
     .append("g")
     .attr(
       "transform",
-      `translate(0,${stackedBarHeight * 2 + stackedBarMargin.bottom - 30})`,
+      `translate(0,${stackedBarHeight * 2 - stackedBarMargin.bottom})`,
     )
     .call(d3.axisBottom(x).tickSizeOuter(0));
 
@@ -370,6 +369,25 @@ d3.csv("fitness_data.csv").then((rawData) => {
     .attr("font-size", 16)
     .attr("font-weight", "bold")
     .text("How often did the influenced users wear their wearables?");
+  
+  // Title of x axis
+  svg
+    .append("text")
+    .attr("x", stackedBarWidth / 2)
+    .attr("y", stackedBarTop + stackedBarHeight - 80)
+    .attr("text-anchor", "middle")
+    .attr("font-size", 12)
+    .attr("font-weight", "bold")
+    .text("How frequently respondents used their wearables");
+  
+  // Title of y axis
+  svg
+    .append("text")
+    .attr("text-anchor", "middle")
+    .attr("font-size", 12)
+    .attr("font-weight", "bold")
+    .attr("transform", `translate(${stackedBarMargin.left/2}, ${stackedBarTop + stackedBarHeight/2 - stackedBarMargin.bottom}) rotate(-90)`)
+    .text("Number of people ");
 
   // At last add a pie chart
   const pieData = (() => {
@@ -447,7 +465,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
     .attr("text-anchor", "middle")
     .attr("font-size", 14)
     .text(
-      "From users who also agreed, or strongly agreed, the wearable influence diet habits...",
+      "From users who also agreed, or strongly agreed the wearable influence diet habits...",
     );
 
   svg2
