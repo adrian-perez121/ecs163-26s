@@ -12,16 +12,20 @@ let titleBarHeight = 35;
 
 let stackedBarLeft = 400,
   stackedBarTop = 0;
-let stackedBarMargin = { top: (height/2 + titleBarHeight + sankeyMargin.bottom + 10), right: 70, bottom: 10, left: 20 },
-  stackedBarWidth = (width/2)
-  stackedBarHeight = (height / 2) 
+let stackedBarMargin = {
+    top: height / 2 + titleBarHeight + sankeyMargin.bottom + 10,
+    right: 70,
+    bottom: 10,
+    left: 20,
+  },
+  stackedBarWidth = width / 2;
+stackedBarHeight = height / 2;
 
 let pieLeft = width / 2,
-  pieTop = height / 2 + titleBarHeight*2;
+  pieTop = height / 2 + titleBarHeight * 2;
 let pieMargin = { top: 20, right: 20, bottom: 20, left: 20 },
-  pieWidth = width/2 - pieMargin.left - pieMargin.right,
-  pieHeight = height/2 - pieMargin.top - pieMargin.bottom - titleBarHeight;
-
+  pieWidth = width / 2 - pieMargin.left - pieMargin.right,
+  pieHeight = height / 2 - pieMargin.top - pieMargin.bottom - titleBarHeight;
 
 // plots
 d3.csv("fitness_data.csv").then((rawData) => {
@@ -74,12 +78,12 @@ d3.csv("fitness_data.csv").then((rawData) => {
       "Exercises " + d["How often do you exercise in a week?"].toLowerCase();
 
     return processed_datum;
-  })
+  });
   filteredData["columns"] = [
     "Did wearable influenced person to exercise?",
     "Was the exercise more enjoyable?",
     "Exercise weekly frequency.",
-  ]
+  ];
 
   // Docs used for learning to how to create the diagram: https://observablehq.com/@d3/parallel-sets
   graph = (() => {
@@ -99,7 +103,7 @@ d3.csv("fitness_data.csv").then((rawData) => {
 
         const node = { name: d[k], columnName: k };
         nodes.push(node); // make a list of all the nodes
-        nodeByKey.set(key, node); //
+        nodeByKey.set(key, node);
         indexByKey.set(key, index++);
       }
     }
@@ -248,195 +252,250 @@ d3.csv("fitness_data.csv").then((rawData) => {
   // Help from: https://observablehq.com/@d3/stacked-bar-chart/2
   const stackedBarData = (() => {
     processed_datum = {};
-    responsesCounts = new d3.InternMap([], JSON.stringify)
-    processed_data = []
+    responsesCounts = new d3.InternMap([], JSON.stringify);
+    processed_data = [];
 
-  // make all possible combinations
-  const influences = new Set();
-  const useFrequencies = new Set();
-  rawData.forEach(d => {
-    const influence = "Influence more exercise: " + (d["Has using a fitness wearable influenced your decision? [To exercise more?]"] || "").trim();
-    const useFrequency = (d["How frequently do you use your fitness wearable?"])
-    influences.add(influence)
-    useFrequencies.add(useFrequency)
-  })
+    // make all possible combinations
+    const influences = new Set();
+    const useFrequencies = new Set();
+    rawData.forEach((d) => {
+      const influence =
+        "Influence more exercise: " +
+        (
+          d[
+            "Has using a fitness wearable influenced your decision? [To exercise more?]"
+          ] || ""
+        ).trim();
+      const useFrequency =
+        d["How frequently do you use your fitness wearable?"];
+      influences.add(influence);
+      useFrequencies.add(useFrequency);
+    });
 
-  for (const influence of influences) {
-    for (const useFrequency of useFrequencies) {
-      responsesCounts.set([influence, useFrequency], 0)
+    for (const influence of influences) {
+      for (const useFrequency of useFrequencies) {
+        responsesCounts.set([influence, useFrequency], 0);
+      }
     }
-  }
 
     rawData.forEach((d) => {
       influence =
-      "Influence more exercise: " +
-      d[
-        "Has using a fitness wearable influenced your decision? [To exercise more?]"
-      ]
-      useFrequency = d["How frequently do you use your fitness wearable?"]
+        "Influence more exercise: " +
+        d[
+          "Has using a fitness wearable influenced your decision? [To exercise more?]"
+        ];
+      useFrequency = d["How frequently do you use your fitness wearable?"];
       // influence is key[0] and frequency is key[1]
-      key = [influence, useFrequency]
-      responsesCounts.set(key, responsesCounts.get(key) + 1)
-    })
+      key = [influence, useFrequency];
+      responsesCounts.set(key, responsesCounts.get(key) + 1);
+    });
 
     for (const [k, v] of responsesCounts) {
-      processed_data.push({influence: k[0], useFrequency: k[1], count: v})
+      processed_data.push({ influence: k[0], useFrequency: k[1], count: v });
     }
 
-    return processed_data
-  }) ()
+    return processed_data;
+  })();
 
+  const indexMap = d3.index(
+    stackedBarData,
+    (d) => d.useFrequency,
+    (d) => d.influence,
+  );
 
-  const indexMap = d3.index(stackedBarData, d => d.useFrequency, d => d.influence);
+  const keys = d3.union(stackedBarData.map((d) => d.influence));
+  const series = d3
+    .stack()
+    .keys(keys)
+    .order((series) => d3.range(series.length).reverse())
+    .value(([, D], key) => (D.get(key) && D.get(key).count) || 0)(indexMap);
 
-  const keys = d3.union(stackedBarData.map(d => d.influence))
-  const series = d3.stack()
-    .keys(keys).order(series => d3.range(series.length).reverse())
-    .value(([, D], key) => D.get(key) && D.get(key).count || 0)
-    (indexMap)
-  
-  const freqOrder = ["Rarely","1-2 times a week","3-4 times a week","Daily"]
-  const x = d3.scaleBand()
+  const freqOrder = ["Rarely", "1-2 times a week", "3-4 times a week", "Daily"];
+  const x = d3
+    .scaleBand()
     .domain(freqOrder)
-    .range([stackedBarMargin.left - 10, stackedBarWidth - stackedBarMargin.right])
-    .padding(0.1)
+    .range([
+      stackedBarMargin.left - 10,
+      stackedBarWidth - stackedBarMargin.right,
+    ])
+    .padding(0.1);
 
-  const y = d3.scaleLinear()
-      .domain([0, d3.max(series, d => d3.max(d, d => d[1])) + 1])
-      .rangeRound([stackedBarHeight * 2 + stackedBarMargin.bottom - 30, stackedBarMargin.top]);
+  const y = d3
+    .scaleLinear()
+    .domain([0, d3.max(series, (d) => d3.max(d, (d) => d[1])) + 1])
+    .rangeRound([
+      stackedBarHeight * 2 + stackedBarMargin.bottom - 30,
+      stackedBarMargin.top,
+    ]);
 
-  svg.append("g")
+  svg
+    .append("g")
     .selectAll()
     .data(series)
     .join("g")
-      .attr("fill", d => color(d.key))
+    .attr("fill", (d) => color(d.key))
     .selectAll("rect")
-    .data(D => D.map(d => (d.key = D.key, d)))
+    .data((D) => D.map((d) => ((d.key = D.key), d)))
     .join("rect")
-      .attr("x", d => x(d.data[0]))
-      .attr("y", d => y(d[1]))
-      .attr("height", d => y(d[0]) - y(d[1]))
-      .attr("width", x.bandwidth())
+    .attr("x", (d) => x(d.data[0]))
+    .attr("y", (d) => y(d[1]))
+    .attr("height", (d) => y(d[0]) - y(d[1]))
+    .attr("width", x.bandwidth())
     .append("title")
-      .text(d => `Exercise Frequency: ${d.data[0]}\n${d.key}\nCount: ${(d.data[1].get(d.key).count)}`);
-  
-      console.log(stackedBarHeight*2 + stackedBarMargin.bottom)
-  svg.append("g")
-      .attr("transform", `translate(0,${stackedBarHeight*2 + stackedBarMargin.bottom - 30})`)
-      .call(d3.axisBottom(x).tickSizeOuter(0))
+    .text(
+      (d) =>
+        `Exercise Frequency: ${d.data[0]}\n${d.key}\nCount: ${d.data[1].get(d.key).count}`,
+    );
 
-  svg.append("g")
-    .attr("transform", `translate(${stackedBarMargin.left +3}, 0)`)
-    .call(d3.axisLeft(y).ticks(null, "s"))
-  
+  console.log(stackedBarHeight * 2 + stackedBarMargin.bottom);
+  svg
+    .append("g")
+    .attr(
+      "transform",
+      `translate(0,${stackedBarHeight * 2 + stackedBarMargin.bottom - 30})`,
+    )
+    .call(d3.axisBottom(x).tickSizeOuter(0));
+
+  svg
+    .append("g")
+    .attr("transform", `translate(${stackedBarMargin.left + 3}, 0)`)
+    .call(d3.axisLeft(y).ticks(null, "s"));
+
   // Title for stack bar plot
-  svg.append("text")
-    .attr("x", stackedBarWidth/2 )
-    .attr("y", height / 2 + titleBarHeight*2)
+  svg
+    .append("text")
+    .attr("x", stackedBarWidth / 2)
+    .attr("y", height / 2 + titleBarHeight * 2)
     .attr("text-anchor", "middle")
     .attr("font-size", 16)
     .attr("font-weight", "bold")
     .text("How often did the influenced users wear their wearables?");
 
-
   // At last add a pie chart
   const pieData = (() => {
-    // we are going to look at what proportions of users who agree or strongly agreed 
+    // we are going to look at what proportions of users who agree or strongly agreed
     // wearables influenced a change in diet, also said wearables influenced decision to exercise
-    const processed_data = {}
-    const filteredData = rawData.filter((d) =>{
-      let response = d["Has using a fitness wearable influenced your decision? [To change your diet?]"]
-      return response == "Agree" || response == "Strongly agree"
-    })
+    const processed_data = {};
+    const filteredData = rawData.filter((d) => {
+      let response =
+        d[
+          "Has using a fitness wearable influenced your decision? [To change your diet?]"
+        ];
+      return response == "Agree" || response == "Strongly agree";
+    });
 
-    let responseCounts = new Map([["Agree", 0],  ["Strongly agree", 0], ["Neutral", 0]])
+    let responseCounts = new Map([
+      ["Agree", 0],
+      ["Strongly agree", 0],
+      ["Neutral", 0],
+    ]);
 
     filteredData.forEach((d) => {
-
-      let influence = d["Has using a fitness wearable influenced your decision? [To exercise more?]"]
-      responseCounts.set(influence, responseCounts.get(influence) + 1)
-    })
+      let influence =
+        d[
+          "Has using a fitness wearable influenced your decision? [To exercise more?]"
+        ];
+      responseCounts.set(influence, responseCounts.get(influence) + 1);
+    });
 
     for (const [k, v] of responseCounts) {
-      processed_data[k] = v
+      processed_data[k] = v;
     }
-    return processed_data
-  })()
+    return processed_data;
+  })();
 
-  const dataPrepper = d3.pie().value( d => d[1] )
-  const piePreppedData = dataPrepper(Object.entries(pieData))
+  const dataPrepper = d3.pie().value((d) => d[1]);
+  const piePreppedData = dataPrepper(Object.entries(pieData));
 
   // Trying something different with the positioning
-  const svg2 = svg.append("svg")
-  .attr("x", pieLeft)
-  .attr("y", pieTop)
-  .attr("height", pieHeight)
-  .attr("width", pieWidth)
+  const svg2 = svg
+    .append("svg")
+    .attr("x", pieLeft)
+    .attr("y", pieTop)
+    .attr("height", pieHeight)
+    .attr("width", pieWidth);
 
+  const radius = pieWidth / 5;
 
-  const radius = pieWidth/5
+  const arcGenerator = d3.arc().innerRadius(0).outerRadius(radius);
 
-  const arcGenerator = d3.arc()
-  .innerRadius(0)
-  .outerRadius(radius)
+  const pieGroup = svg2
+    .append("g")
+    .attr("transform", `translate(${pieWidth / 2}, ${pieHeight / 2})`);
 
-  const pieGroup = svg2.append("g")
-  .attr("transform", `translate(${pieWidth/2}, ${pieHeight/2})`)
-
-  pieGroup.selectAll("slices")
-  .data(piePreppedData)
-  .join("path")
+  pieGroup
+    .selectAll("slices")
+    .data(piePreppedData)
+    .join("path")
     .attr("d", arcGenerator)
-    .attr("fill", d => color(d.data[0]))
+    .attr("fill", (d) => color(d.data[0]));
 
-  pieGroup.selectAll("slices")
-  .data(piePreppedData)
-  .join('text')
-  .text(d =>  d.data[0])
-  .attr("transform", d => "translate(" + arcGenerator.centroid(d) + ")")
-  .attr("text-anchor", "middle")
-  .attr("font-size", 14)
+  pieGroup
+    .selectAll("slices")
+    .data(piePreppedData)
+    .join("text")
+    .text((d) => d.data[0])
+    .attr("transform", (d) => "translate(" + arcGenerator.centroid(d) + ")")
+    .attr("text-anchor", "middle")
+    .attr("font-size", 14);
 
+  svg2
+    .append("text")
+    .attr("x", pieWidth / 2)
+    .attr("y", 30)
+    .attr("font-weight", "bold")
+    .attr("text-anchor", "middle")
+    .attr("font-size", 14)
+    .text(
+      "From users who also agreed, or strongly agreed, the wearable influence diet habits...",
+    );
 
-  svg2.append("text")
-  .attr("x", pieWidth / 2 )
-  .attr("y", 30)
-  .attr("font-weight", "bold")
-  .attr("text-anchor", "middle")
-  .attr("font-size", 14)
-  .text("From users who also agreed, or strongly agreed, the wearable influence diet habits...")
-
-  svg2.append("text")
-  .attr("x", pieWidth / 2 )
-  .attr("y", pieHeight - pieMargin.bottom)
-  .attr("font-weight", "bold")
-  .attr("text-anchor", "middle")
-  .text("over 50% also agreed it influenced their decision to exercise!")
+  svg2
+    .append("text")
+    .attr("x", pieWidth / 2)
+    .attr("y", pieHeight - pieMargin.bottom)
+    .attr("font-weight", "bold")
+    .attr("text-anchor", "middle")
+    .text("over 50% also agreed it influenced their decision to exercise!");
 
   // Add the legend
-  const legendKeys = ["Influence more exercise: Strongly agree ", "Influence more exercise: Agree", "Influence more exercise: Neutral"]
-  const legendX = width / 2 - 330
-  const legendY = 15
-  let size = 20
-  svg.selectAll("mydots")
-  .data(legendKeys)
-  .enter()
-  .append("rect")
+  const legendKeys = [
+    "Influence more exercise: Strongly agree ",
+    "Influence more exercise: Agree",
+    "Influence more exercise: Neutral",
+  ];
+  const legendX = width / 2 - 330;
+  const legendY = 15;
+  let size = 20;
+  svg
+    .selectAll("mydots")
+    .data(legendKeys)
+    .enter()
+    .append("rect")
     .attr("y", legendY)
-    .attr("x", function(d,i){ return legendX + i*(size+300)}) 
+    .attr("x", function (d, i) {
+      return legendX + i * (size + 300);
+    })
     .attr("width", size)
     .attr("height", size)
-    .style("fill", function(d){ return color(d)})
+    .style("fill", function (d) {
+      return color(d);
+    });
 
-  svg.selectAll("mylabels")
-  .data(legendKeys)
-  .enter()
-  .append("text")
-    .attr("y", legendY + size*1.4)
-    .attr("x", function(d,i){ return legendX + i*(size+300) + (size/2)}) // 100 is where the first dot appears. 25 is the distance between dots
-    .text(function(d){ return d})
+  svg
+    .selectAll("mylabels")
+    .data(legendKeys)
+    .enter()
+    .append("text")
+    .attr("y", legendY + size * 1.4)
+    .attr("x", function (d, i) {
+      return legendX + i * (size + 300) + size / 2;
+    }) // 100 is where the first dot appears. 25 is the distance between dots
+    .text(function (d) {
+      return d;
+    })
     .attr("font-size", 10)
     .attr("font-weight", "bold")
     .attr("text-anchor", "middle")
-    .style("alignment-baseline", "middle")
+    .style("alignment-baseline", "middle");
 });
